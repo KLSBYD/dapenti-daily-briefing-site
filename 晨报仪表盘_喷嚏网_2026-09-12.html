@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
 <title>喷嚏晨报 · 2026年9月12日 · 周六</title>
-<script>document.documentElement.classList.add('js-ready');</script>
+<script>document.documentElement.classList.add('js-ready');try{if('scrollRestoration' in history){history.scrollRestoration='manual';}}catch(e){}</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -694,17 +694,43 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
   var DATA={};
   try{DATA=JSON.parse(document.getElementById('appData').textContent)||{};}catch(e){}
 
-  /* ---------- 滚动位置不跨页残留（痛点2：浏览器 scrollRestoration/bfcache 恢复） ----------
-     恢复策略改为 manual：每次进入页面一律回顶部；带 hash 锚点访问时交还浏览器定位。
-     站内板块导航均为 JS 按钮 scrollIntoView，不受影响。 */
-  if('scrollRestoration' in history){history.scrollRestoration='manual';}
-  function goTopNow(){
-    if(location.hash)return;
+  /* ---------- 滚动位置不跨页残留（痛点2 · 二次修复）
+     为什么上一版没修好：history.scrollRestoration='manual' 原先写在文档末尾
+     （构建后落在大约第 287KB 处），此时浏览器早已执行完自己的滚动恢复，
+     事后再设 manual 撤销不了已发生的恢复；而回顶只在 load 触发一次，
+     移动端 WebView / bfcache 路径会在 load 之后再覆盖一次。
+     本版三处加固：
+       ① manual 提前到 <head> 最早执行（见 head 内联 script）；
+       ② 硬回顶：临时关掉 scroll-behavior:smooth，避免被动画化后中途打断；
+       ③ 多点触发：脚本执行 / DOMContentLoaded / pageshow / rAF / 两个短延时 / load，
+          覆盖平台层"迟到的原生恢复"。用户一旦有交互即停止补刀，不回拽。
+     带 hash 时改为"定位到锚点目标，找不到就回顶"（原实现是一刀切 return，URL 带 hash 就完全不回顶）。 */
+  function resetScroll(){
+    if(location.hash){
+      var t=null;
+      try{t=document.getElementById(decodeURIComponent(location.hash.slice(1)));}catch(e){t=null;}
+      if(t&&t.scrollIntoView){t.scrollIntoView({block:'start'});return;}
+    }
+    var de=document.documentElement,bo=document.body,prev=de.style.scrollBehavior;
+    de.style.scrollBehavior='auto';
     try{window.scrollTo({top:0,left:0,behavior:'instant'});}
     catch(e){window.scrollTo(0,0);}
+    if(de.scrollTop)de.scrollTop=0;
+    if(bo&&bo.scrollTop)bo.scrollTop=0;
+    de.style.scrollBehavior=prev;
   }
-  window.addEventListener('load',goTopNow);
-  window.addEventListener('pageshow',function(e){if(e.persisted){goTopNow();}});
+  var scrollTouched=false;
+  ['wheel','touchstart','keydown','mousedown'].forEach(function(ev){
+    window.addEventListener(ev,function(){scrollTouched=true;},{passive:true,once:true});
+  });
+  function softResetScroll(){if(!scrollTouched)resetScroll();}
+  resetScroll();
+  document.addEventListener('DOMContentLoaded',resetScroll);
+  window.addEventListener('pageshow',resetScroll);
+  requestAnimationFrame(resetScroll);
+  setTimeout(softResetScroll,60);
+  setTimeout(softResetScroll,300);
+  window.addEventListener('load',function(){softResetScroll();setTimeout(softResetScroll,150);});
 
   var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
   var pad=function(n){return ('0'+n).slice(-2);};
