@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>滚动残留 · 移动端判别实验台</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FFF9F2;--card:#FFFFFF;--elev:#FFF4E6;--tx:#221A12;--tx2:#5C5348;--txm:#9A8F80;
+  --acc:#FF6B35;--accl:#FFE4D6;--gold:#F7B801;--bd:#F0E4D4;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+body{background:var(--bg);color:var(--tx);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-text-size-adjust:100%;padding:0 0 60px}
+.wrap{max-width:720px;margin:0 auto;padding:0 18px}
+header{background:linear-gradient(135deg,#FF6B35 0%,#F7B801 100%);color:#fff;padding:26px 18px 22px;margin-bottom:22px}
+header h1{font-size:1.32rem;font-weight:800;letter-spacing:-.3px}
+header p{font-size:.82rem;opacity:.94;margin-top:6px}
+.badge{display:inline-block;font-family:var(--mono);font-size:.68rem;letter-spacing:1px;background:rgba(255,255,255,.22);padding:2px 9px;border-radius:999px;margin-bottom:9px}
+h2{font-size:1rem;font-weight:800;margin:26px 0 10px;letter-spacing:-.2px}
+h2:first-of-type{margin-top:8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 16px 14px;margin-bottom:13px}
+ol,ul{padding-left:1.25em}
+li{margin:5px 0;font-size:.9rem;color:var(--tx2)}
+li b{color:var(--tx)}
+.note{background:var(--elev);border-left:3px solid var(--gold);border-radius:9px;padding:11px 13px;font-size:.82rem;color:var(--tx2);line-height:1.7;margin:12px 0}
+.v{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 0;border-bottom:1px dashed var(--bd)}
+.v:last-child{border-bottom:0;padding-bottom:2px}
+.v-tag{font-family:var(--mono);font-size:.74rem;font-weight:700;color:var(--acc);background:var(--accl);padding:3px 9px;border-radius:7px;flex-shrink:0}
+.v-desc{flex:1 1 100%;font-size:.78rem;color:var(--txm);margin-top:2px}
+.v-desc b{color:var(--tx2)}
+.btns{display:flex;gap:9px;flex:1 1 100%;margin-top:8px}
+a.btn{flex:1;text-align:center;text-decoration:none;font-size:.84rem;font-weight:700;padding:10px 8px;border-radius:999px;border:1px solid var(--bd);background:var(--elev);color:var(--tx2)}
+a.btn.s{background:var(--acc);border-color:var(--acc);color:#fff}
+a.btn.t{background:#fff;border-color:var(--acc);color:var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);vertical-align:top}
+th{color:var(--txm);font-weight:600;font-size:.76rem}
+td b{color:var(--acc)}
+footer{text-align:center;font-size:.72rem;color:var(--txm);margin-top:30px;line-height:1.9}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <span class="badge">SCROLL LAB · ONE-OFF</span>
+    <h1>滚动残留 · 移动端判别实验台</h1>
+    <p>用 5 分钟判定：这个毛病到底在哪一层，好对症下药</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h2>为什么还要做这一步</h2>
+  <div class="card">
+    <ul>
+      <li>页面层能做的已经做到极限（本机对照 <b>7/7</b> 通过），但你手机上仍然复现。</li>
+      <li>说明残余<b>不在页面 JS 的管辖范围内</b>，而在 WebView 原生容器层——它比页面脚本更早，而且绕得过浏览器的规范 API。</li>
+      <li>三个候选机理（容器复用 / 同构误判 / 页面栈复用）<b>修法完全不同</b>，直接动手有三分之二的概率是白做。</li>
+      <li>所以先用下面四个变体各点一遍，就能判出方向。</li>
+    </ul>
+  </div>
+
+  <h2>怎么做（每行两下，共 4 行）</h2>
+  <div class="card">
+    <ol>
+      <li>点该行的 <b>「① 滚动源」</b>，进页面后往下滑，滑到很靠下的位置（大约第 20 张卡）。</li>
+      <li>用左上角<b>返回</b>回到本页（不要用「重新打开链接」）。</li>
+      <li>点同一行的 <b>「② 目标页」</b>，<b>看它落在哪里</b>。</li>
+      <li>记下结果，四行做完。</li>
+    </ol>
+    <div class="note">
+      <b>开始每个变体前：</b>把已打开的晨报页面都关掉，从本页重新点 —— 保证每一行都是"干净的一次进入"。<br>
+      <b>V1 会慢一点是正常的</b>：它的原理是让每次进入都换成一个没见过的网址，代价是多一次加载。这一项是否值得保留，正是本次要判的。
+    </div>
+  </div>
+
+  <h2>四个变体</h2>
+  <div class="card">
+    <div class="v">
+      <span class="v-tag">V0</span><span><b>对照 · 不做任何处理</b></span>
+      <div class="v-desc">确认毛病还在——这是基线，<b>如果它不复现，后面几行就都没意义了</b>。</div>
+      <div class="btns">
+        <a class="btn s" href="../晨报仪表盘_喷嚏网_2026-09-14.html?sv=0">① 滚动源</a>
+        <a class="btn t" href="../index.html?sv=0">② 目标页</a>
+      </div>
+    </div>
+    <div class="v">
+      <span class="v-tag">V1</span><span><b>URL 扰动</b></span>
+      <div class="v-desc">让每次进入都变成一个全新网址。若这行好了 → 容器是<b>按网址记住位置</b>的。</div>
+      <div class="btns">
+        <a class="btn s" href="../晨报仪表盘_喷嚏网_2026-09-14.html?sv=1">① 滚动源</a>
+        <a class="btn t" href="../index.html?sv=1">② 目标页</a>
+      </div>
+    </div>
+    <div class="v">
+      <span class="v-tag">V3</span><span><b>离场归零</b></span>
+      <div class="v-desc">离开页面那一刻主动滚回顶部，容器记住的就是 0。若这行好了 → <b>修法只要几行代码</b>。</div>
+      <div class="btns">
+        <a class="btn s" href="../晨报仪表盘_喷嚏网_2026-09-14.html?sv=3">① 滚动源</a>
+        <a class="btn t" href="../index.html?sv=3">② 目标页</a>
+      </div>
+    </div>
+    <div class="v">
+      <span class="v-tag">V1+V3</span><span><b>本次已上线到正式版的组合</b></span>
+      <div class="v-desc">两项同时开（正式版缺省行为）。<b>这行是最终要的那一行。</b></div>
+      <div class="btns">
+        <a class="btn s" href="../晨报仪表盘_喷嚏网_2026-09-14.html">① 滚动源</a>
+        <a class="btn t" href="../index.html">② 目标页</a>
+      </div>
+    </div>
+  </div>
+
+  <h2>怎么读结果</h2>
+  <div class="card">
+    <table>
+      <tr><th>你看到的</th><th>判定</th></tr>
+      <tr><td><b>V1</b> 落在顶部，V3 仍复现</td><td>容器按网址关联 → 保留 URL 扰动即可</td></tr>
+      <tr><td><b>V3</b> 落在顶部，V1 仍复现</td><td>容器记"离开时的位置" → 保留离场归零，可去掉 V1（省掉那次多余加载）</td></tr>
+      <tr><td><b>两个单独都不行，但 V1+V3 好了</b></td><td>需要两者叠加</td></tr>
+      <tr><td><b>三行都仍复现</b></td><td>容器级强保留，页面层无解 → 要换思路（存档单页化：切换不产生跨页跳转）</td></tr>
+      <tr><td><b>V0 就不复现了</b></td><td>毛病是偶发的（与网络/内存状态有关），需再观察几次</td></tr>
+    </table>
+  </div>
+
+  <h2>把这些告诉我</h2>
+  <div class="card">
+    <ul>
+      <li>每行的目标页落在：<b>顶部 / 中间（大概第几张卡）/ 与滚动源几乎同一位置</b></li>
+      <li>你是从哪进的：<b>微信内</b>还是<b>手机浏览器</b></li>
+      <li>顺手看一眼：微信里点「返回」回上一页，是不是也复现</li>
+    </ul>
+  </div>
+
+  <footer>
+    一次性实验页 · 不进任何导航 · 判定完成后由小王清理（清理前会先报备）<br>
+    喷嚏晨报 · 滚动残留专项
+  </footer>
+</div>
+</body>
+</html>
