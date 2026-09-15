@@ -5,7 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
 <title>喷嚏晨报 · 2026年9月7日 · 周一</title>
-<script>document.documentElement.classList.add('js-ready');try{if('scrollRestoration' in history){history.scrollRestoration='manual';}}catch(e){}</script>
+<script>
+document.documentElement.classList.add('js-ready');
+try{if('scrollRestoration' in history){history.scrollRestoration='manual';}}catch(e){}
+/* ===== 移动端滚动残留 · L2-1「URL 扰动」(V1) =====
+   现状：页面层已做满（本机对照 7/7），手机端仍复现 → 残余只可能在 WebView 容器层。
+   本项针对的假设：容器/内核按「URL」关联上一页的滚动位置（H1 容器复用 / H2 同源同构误判 / H3 页面栈复用）。
+   做法：若 URL 不带 v 标记，就在文档解析最早期 location.replace 补一个唯一标记——
+        「每次进入都是一个从未出现过的 URL」，容器就没有可继承的对象。
+        用 replace 不新增历史项；第二次进入命中 v 标记即不再跳转（防自激循环）。
+   代价：每次进入多一次文档加载（页面约 0.5MB）。若实测无收益，删这一段即可整体回退。
+   开关：?sv=0 全关 / ?sv=1 只开本项 / ?sv=3 只开「离场归零」/ 缺省两项全开（sv=13） */
+(function(){
+  try{
+    var q=location.search||'',m=/[?&]sv=([^&]*)/.exec(q),sv=m?m[1]:'13';
+    if(sv.indexOf('1')<0)return;
+    if(/[?&]v=/.test(q))return;
+    location.replace(location.pathname+(q?q+'&':'?')+'v='+Date.now()+location.hash);
+  }catch(e){}
+})();
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -146,6 +165,22 @@ html.js-ready .card.visible{opacity:1;transform:none}
 .reader-bottom{display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 18px;border-top:1px solid var(--border);background:var(--bg-card);flex-shrink:0}
 .reader-bottom .r-origin{font-size:.9rem;padding:8px 20px;border-radius:999px;background:var(--accent-light);color:var(--accent)}
 .reader-bottom .r-origin:hover{background:var(--grad);color:#fff;text-decoration:none}
+
+/* ---------- 阅读面板 · 全屏查看（P5）
+   全屏态只改「容器尺寸与边框」：面板铺满可视区、去圆角、隐藏遮罩；
+   内容区（标题 / 元信息 / 正文 / 图片）与交互（返回列表 / 底栏原文 / Esc）
+   完全继承，保证全屏前后是同一套设计语言，不引入第二套视觉。 */
+.r-full{appearance:none;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-secondary);font:inherit;font-size:.82rem;font-weight:600;padding:6px 13px;border-radius:999px;cursor:pointer;transition:var(--t);margin-left:auto;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.r-full:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent-light)}
+.r-full:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.r-full svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.r-full .i-collapse{display:none}
+.reader.full .r-full .i-expand{display:none}
+.reader.full .r-full .i-collapse{display:block}
+.reader.full{align-items:stretch;padding:0}
+.reader.full .reader-scrim{display:none}
+.reader.full .reader-panel{width:min(860px,100%);height:100%!important;border-radius:0;box-shadow:none;transform:none}
+@media (min-width:769px){.reader.full .reader-panel{width:min(920px,100%)}}
 
 /* Footer */
 footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px solid var(--border);background:var(--bg-elevated)}
@@ -667,7 +702,11 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
     <div class="reader-top">
       <button class="r-back" id="readerBack" type="button">返回列表</button>
       <span class="r-badge">站内阅读 · 文本快照</span>
-      <a class="r-origin" id="readerOrigin" href="#" target="_blank" rel="noopener noreferrer">喷嚏网原文 ↗</a>
+      <button class="r-full" id="readerFull" type="button" aria-pressed="false" title="全屏查看">
+        <svg class="i-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5.6A1.6 1.6 0 0 0 4 5.6V9"/><path d="M15 4h3.4A1.6 1.6 0 0 1 20 5.6V9"/><path d="M20 15v3.4a1.6 1.6 0 0 1-1.6 1.6H15"/><path d="M4 15v3.4A1.6 1.6 0 0 0 5.6 20H9"/></svg>
+        <svg class="i-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h3.4A1.6 1.6 0 0 0 9 7.4V4"/><path d="M20 9h-3.4A1.6 1.6 0 0 1 15 7.4V4"/><path d="M15 20v-3.4a1.6 1.6 0 0 1 1.6-1.6H20"/><path d="M9 20v-3.4A1.6 1.6 0 0 0 7.4 15H4"/></svg>
+        <span id="readerFullTxt">全屏查看</span>
+      </button>
     </div>
     <div class="reader-scroll" id="readerScroll">
       <div class="r-kicker" id="rNo"></div>
@@ -732,6 +771,28 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
   setTimeout(softResetScroll,300);
   window.addEventListener('load',function(){softResetScroll();setTimeout(softResetScroll,150);});
 
+  /* ---------- 移动端滚动残留 · L1-1「离场归零」(V3) ----------
+     若容器是在"离开页面那一刻"记下本页的滚动位置，那就主动在离开前归零，
+     它记下的就是 0，「打开下一页」自然从顶部开始。
+     重要取舍：只监听 pagehide（真正离场/进入缓存），
+     **刻意不监听 visibilitychange** —— 那会在"切到微信聊天再切回来"时把阅读位置清掉，
+     属于为了修 bug 而制造新的可用性损伤，不能这么做。
+     开关：同 V1，见 head 内注释（?sv=0 / 1 / 3 / 缺省 13）。 */
+  (function(){
+    try{
+      var q=location.search||'',m=/[?&]sv=([^&]*)/.exec(q),sv=m?m[1]:'13';
+      if(sv.indexOf('3')<0)return;
+      window.addEventListener('pagehide',function(){
+        var de=document.documentElement,bo=document.body,prev=de.style.scrollBehavior;
+        de.style.scrollBehavior='auto';
+        try{window.scrollTo(0,0);}catch(e){}
+        if(de.scrollTop)de.scrollTop=0;
+        if(bo&&bo.scrollTop)bo.scrollTop=0;
+        de.style.scrollBehavior=prev;
+      },true);
+    }catch(e){}
+  })();
+
   var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
   var pad=function(n){return ('0'+n).slice(-2);};
 
@@ -791,7 +852,7 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
       rChip=document.getElementById('rChip'),rTime=document.getElementById('rTime'),
       rWall=document.getElementById('rWall'),rBody=document.getElementById('rBody'),
       rScroll=document.getElementById('readerScroll');
-  var rOrigin=document.getElementById('readerOrigin'),rOrigin2=document.getElementById('readerOrigin2');
+  var rOrigin2=document.getElementById('readerOrigin2');
   var rProg=document.getElementById('rProg'),rProgText=document.getElementById('rProgText');
   var vv=window.visualViewport||null;
   /* 缩放/视口变化时让遮罩与面板严格贴合实际可视高度（vh 在页面缩放下不随可视区变，需以 visualViewport 为准） */
@@ -800,6 +861,12 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
     var h=(vv&&vv.height>0)?vv.height:(window.innerHeight||document.documentElement.clientHeight);
     if(h<=0)h=900;
     reader.style.height=h+'px';
+    var full=reader.classList.contains('full');
+    if(full){                       /* 全屏态：面板交给 CSS 铺满，不能再写死像素高度（否则点了没反应） */
+      var p0=document.querySelector('.reader-panel');
+      if(p0)p0.style.height='100%';
+      return;
+    }
     var mobile=window.matchMedia('(max-width:768px)').matches;
     var ratio=mobile?0.93:0.88;
     var pH=Math.min(Math.round(h*ratio),(mobile?10000:860));
@@ -826,7 +893,6 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
     rNo.textContent='No.'+pad(rec.no)+' · 站内阅读 · 文本快照';
     rChip.textContent=rec.chip||rec.sec||'';
     rTime.textContent=rec.time||'';
-    if(rOrigin)rOrigin.href=rec.url;
     if(rOrigin2)rOrigin2.href=rec.url;
     if(rWall){
       if(rec.wall){rWall.hidden=false;rWall.textContent=rec.wall;}
@@ -874,8 +940,45 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
     document.body.style.overflow='hidden';
     syncOverlay();
   }
+  /* ---------- 全屏查看（P5） ----------
+     两段式：① 先切「铺满态」(.reader.full)，纯 CSS，所有环境都能生效；
+             ② 再尝试元素级全屏 API，支持时连浏览器 UI 一起隐藏（桌面 Chromium / 安卓 XWeb），
+                不支持时（如 iOS WKWebView 不允许元素全屏）静默停用——两条路径外观与交互一致。 */
+  var fullBtn=document.getElementById('readerFull'),fullTxt=document.getElementById('readerFullTxt');
+  function setFull(on){
+    if(!reader)return;
+    on=!!on;
+    if(on){reader.classList.add('full');}else{reader.classList.remove('full');}
+    if(fullBtn){fullBtn.setAttribute('aria-pressed',on?'true':'false');fullBtn.title=on?'退出全屏':'全屏查看';}
+    if(fullTxt){fullTxt.textContent=on?'退出全屏':'全屏查看';}
+    syncOverlay();
+    try{
+      if(on){
+        var fn=reader.requestFullscreen||reader.webkitRequestFullscreen;
+        if(fn){var p=fn.call(reader);if(p&&p.catch)p.catch(function(){});}
+      }else{
+        var ef=document.exitFullscreen||document.webkitExitFullscreen;
+        if((document.fullscreenElement||document.webkitFullscreenElement)&&ef){
+          var q=ef.call(document);if(q&&q.catch)q.catch(function(){});
+        }
+      }
+    }catch(e){}
+  }
+  /* 用户用系统手势/返回键退出「真全屏」时，把铺满态一并收回，保持两个状态不脱节 */
+  ['fullscreenchange','webkitfullscreenchange'].forEach(function(ev){
+    document.addEventListener(ev,function(){
+      var fe=document.fullscreenElement||document.webkitFullscreenElement;
+      if(!fe&&reader&&reader.classList.contains('full')){
+        reader.classList.remove('full');
+        if(fullBtn){fullBtn.setAttribute('aria-pressed','false');fullBtn.title='全屏查看';}
+        if(fullTxt){fullTxt.textContent='全屏查看';}
+        syncOverlay();
+      }
+    });
+  });
   function closeReader(){
     if(!reader)return;
+    if(reader.classList.contains('full'))setFull(false);
     reader.classList.remove('open');
     reader.setAttribute('aria-hidden','true');
     document.body.style.overflow='';
@@ -898,10 +1001,13 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
   });
   var backBtn=document.getElementById('readerBack');
   if(backBtn){backBtn.addEventListener('click',closeReader);}
+  if(fullBtn){fullBtn.addEventListener('click',function(){setFull(!reader.classList.contains('full'));});}
   var scrim=document.getElementById('readerScrim');
   if(scrim){scrim.addEventListener('click',closeReader);}
   document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'&&reader&&reader.classList.contains('open')){closeReader();}
+    if(e.key!=='Escape'||!reader||!reader.classList.contains('open'))return;
+    if(reader.classList.contains('full')){setFull(false);return;}   /* Esc 逐级退出：先退全屏，再关面板 */
+    closeReader();
   });
 
   /* ---------- 卡片/统计进场 ---------- */
