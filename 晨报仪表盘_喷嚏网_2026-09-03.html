@@ -8,17 +8,22 @@
 <script>
 document.documentElement.classList.add('js-ready');
 try{if('scrollRestoration' in history){history.scrollRestoration='manual';}}catch(e){}
-/* ===== 移动端滚动残留 · L2-1「URL 扰动」(V1) =====
-   现状：页面层已做满（本机对照 7/7），手机端仍复现 → 残余只可能在 WebView 容器层。
-   本项针对的假设：容器/内核按「URL」关联上一页的滚动位置（H1 容器复用 / H2 同源同构误判 / H3 页面栈复用）。
-   做法：若 URL 不带 v 标记，就在文档解析最早期 location.replace 补一个唯一标记——
-        「每次进入都是一个从未出现过的 URL」，容器就没有可继承的对象。
-        用 replace 不新增历史项；第二次进入命中 v 标记即不再跳转（防自激循环）。
-   代价：每次进入多一次文档加载（页面约 0.5MB）。若实测无收益，删这一段即可整体回退。
-   开关：?sv=0 全关 / ?sv=1 只开本项 / ?sv=3 只开「离场归零」/ 缺省两项全开（sv=13） */
+/* ===== 移动端滚动残留 · L2-1「URL 扰动」(V1) —— 【已默认关闭，保留代码待复核后删除】 =====
+   ⚠️ 诊断修正（09-15 下午，父亲大人澄清现象后）：此前把症状理解成"浏览器页面之间的
+      滚动位置残留"，据此做了 V1/V3 两项。真实症状是**站内阅读面板**的滚动位置残留
+      （读完 A 篇 → 返回列表 → 打开 B 篇，内容换了、位置没换），真因见 body 内
+      resetReaderScroll 注释，已在页面自身修好。V1/V3 作用在"文档级滚动"这一层，
+      对阅读面板的内层滚动容器**在原理上就够不着**；且 18af3eb 上线后（两者默认全开）
+      症状依旧复现，等于实测无效。
+   ⇒ 故两者缺省改为关闭（sv 缺省 '0'），消除 V1「每次进入多加载约 0.5MB」的日常代价。
+      代码暂留，供手机端做单变量复核（?sv=13 可临时开回）；复核完确认无用即整体删除。
+   原假设与做法（保留备查）：容器/内核按「URL」关联上一页滚动位置 → 若 URL 不带 v 标记，
+      就在文档解析最早期 location.replace 补唯一标记，每次进入都是从未出现过的 URL；
+      replace 不新增历史项，第二次进入命中标记即停（防自激）。
+   开关：?sv=0 全关（缺省）/ ?sv=1 只开本项 / ?sv=3 只开「离场归零」/ ?sv=13 两项全开 */
 (function(){
   try{
-    var q=location.search||'',m=/[?&]sv=([^&]*)/.exec(q),sv=m?m[1]:'13';
+    var q=location.search||'',m=/[?&]sv=([^&]*)/.exec(q),sv=m?m[1]:'0';   /* 缺省关：见上方注释 */
     if(sv.indexOf('1')<0)return;
     if(/[?&]v=/.test(q))return;
     location.replace(location.pathname+(q?q+'&':'?')+'v='+Date.now()+location.hash);
@@ -768,10 +773,11 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
      重要取舍：只监听 pagehide（真正离场/进入缓存），
      **刻意不监听 visibilitychange** —— 那会在"切到微信聊天再切回来"时把阅读位置清掉，
      属于为了修 bug 而制造新的可用性损伤，不能这么做。
-     开关：同 V1，见 head 内注释（?sv=0 / 1 / 3 / 缺省 13）。 */
+     开关：同 V1，见 head 内注释（?sv=0 缺省 / 1 / 3 / 13）。与 V1 同理，缺省改关：
+     本项作用于文档级滚动，够不着阅读面板的内层滚动容器，且实测未消除症状。 */
   (function(){
     try{
-      var q=location.search||'',m=/[?&]sv=([^&]*)/.exec(q),sv=m?m[1]:'13';
+      var q=location.search||'',m=/[?&]sv=([^&]*)/.exec(q),sv=m?m[1]:'0';   /* 缺省关：见上方注释 */
       if(sv.indexOf('3')<0)return;
       window.addEventListener('pagehide',function(){
         var de=document.documentElement,bo=document.body,prev=de.style.scrollBehavior;
@@ -877,6 +883,37 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
     if(s.indexOf('/')===0)return 'https://www.dapenti.com'+s;
     return s;
   }
+  /* ---------- 面板内滚动位置归零（P6 · 真因修复）
+     症状（父亲大人实测）：读完 A 篇、把面板划到某处 → 返回列表 → 打开 B 篇，
+     内容已经是 B，但停在上次那个位置上。
+     真因：.reader 关闭态是 display:none，此刻 #readerScroll 没有任何布局盒，
+          `rScroll.scrollTop=0` 会被内核直接忽略（不是可滚动盒，赋值无效）；
+          而重新 display:flex 时，内核会把隐藏前保存的滚动偏移「还原」回来
+          （Blink 的 SaveScrollOffset / RestoreScrollOffset 做的正是这件事），
+          旧位置于是复活 —— 这就是"代码里明明写了归零、却还是跳回原处"的原因。
+     三条对策，缺一不可：
+       ① 先显示、后归零（顺序颠倒等于白写）；
+       ② 硬归零：.reader-scroll 带 scroll-behavior:smooth，直接赋 scrollTop 会被
+          当成平滑滚动（当场读回来仍是旧值），须临时切成 auto 再赋；
+       ③ 多点补刀 + 交互哨兵：面板高度变化、图片陆续载入都会引发二次布局，
+          80ms / 320ms 各补一次；用户一旦真的开始滚动（wheel / touchmove / 按键）
+          立即停手，不把正在阅读的人拽回顶部。
+     另：关闭时也归零一次（见 closeReader）——隐藏前先清成 0，内核就没旧位置可存。 */
+  var rScrollTouched=false;
+  function resetReaderScroll(){
+    if(!rScroll)return;
+    var prev=rScroll.style.scrollBehavior;
+    rScroll.style.scrollBehavior='auto';
+    rScroll.scrollTop=0;
+    if(rScroll.scrollTop)rScroll.scrollTop=0;
+    rScroll.style.scrollBehavior=prev;
+  }
+  function softResetReaderScroll(){if(!rScrollTouched)resetReaderScroll();}
+  if(rScroll){
+    ['wheel','touchmove','keydown'].forEach(function(ev){
+      rScroll.addEventListener(ev,function(){rScrollTouched=true;},{passive:true});
+    });
+  }
   function openReader(id){
     var rec=DATA[id];
     if(!rec||!reader)return;
@@ -925,17 +962,37 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
       im.addEventListener('load',function(){im.classList.add('ok');bump(true);});
       im.addEventListener('error',function(){bump(false);});
     });
-    rScroll.scrollTop=0;
+    rScrollTouched=false;
     reader.classList.add('open');
     reader.setAttribute('aria-hidden','false');
     document.body.style.overflow='hidden';
     syncOverlay();
+    /* 归零必须发生在面板「已显示」之后 —— 顺序颠倒等于白写，原因见 resetReaderScroll 注释 */
+    resetReaderScroll();
+    requestAnimationFrame(resetReaderScroll);
+    setTimeout(softResetReaderScroll,80);
+    setTimeout(softResetReaderScroll,320);
   }
   /* ---------- 全屏查看（P5） ----------
      两段式：① 先切「铺满态」(.reader.full)，纯 CSS，所有环境都能生效；
              ② 再尝试元素级全屏 API，支持时连浏览器 UI 一起隐藏（桌面 Chromium / 安卓 XWeb），
                 不支持时（如 iOS WKWebView 不允许元素全屏）静默停用——两条路径外观与交互一致。 */
   var fullBtn=document.getElementById('readerFull'),fullTxt=document.getElementById('readerFullTxt');
+  /* 移动端**不调用**原生全屏（父亲大人实测：手机点全屏会翻成横向全屏）。
+     成因：进入系统全屏后内核会解锁方向，手机开着自动旋转就会转横屏 —— 页内 CSS 无法阻止。
+     铺满态本身已经占满可视区，手机端不需要系统全屏；桌面端保留，用于连浏览器 UI 一起隐藏。
+     判定依据是「主指针是否为触摸」，**不能**用 navigator.maxTouchPoints ——
+     实测桌面 Chromium 也报 maxTouchPoints=10，拿它当依据会把桌面误判成手机。 */
+  var useNativeFull=(function(){
+    try{
+      if(!(document.fullscreenEnabled||document.webkitFullscreenEnabled))return false;
+      var mm=window.matchMedia;
+      if(!mm)return false;                        /* 探测不了就别用：铺满态本就够 */
+      if(mm('(pointer:coarse)').matches)return false;
+      if(mm('(hover:none)').matches)return false;
+      return true;
+    }catch(e){return false;}
+  })();
   function setFull(on){
     if(!reader)return;
     on=!!on;
@@ -943,6 +1000,7 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
     if(fullBtn){fullBtn.setAttribute('aria-pressed',on?'true':'false');fullBtn.title=on?'退出全屏':'全屏查看';}
     if(fullTxt){fullTxt.textContent=on?'退出全屏':'全屏查看';}
     syncOverlay();
+    if(!useNativeFull)return;   /* 移动端到此为止：只切铺满态，不进系统全屏，屏幕就不会转横 */
     try{
       if(on){
         var fn=reader.requestFullscreen||reader.webkitRequestFullscreen;
@@ -970,6 +1028,9 @@ footer{margin-top:54px;padding:34px 24px 40px;text-align:center;border-top:1px s
   function closeReader(){
     if(!reader)return;
     if(reader.classList.contains('full'))setFull(false);
+    /* 隐藏前先归零：面板转 display:none 时内核会保存当时的滚动偏移，
+       下次显示再还原。先在原位清成 0，内核就没旧位置可存（与 openReader 里的归零双保险）。 */
+    resetReaderScroll();
     reader.classList.remove('open');
     reader.setAttribute('aria-hidden','true');
     document.body.style.overflow='';
